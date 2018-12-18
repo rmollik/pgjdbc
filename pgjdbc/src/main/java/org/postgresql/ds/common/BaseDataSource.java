@@ -5,15 +5,6 @@
 
 package org.postgresql.ds.common;
 
-import org.postgresql.PGProperty;
-import org.postgresql.jdbc.AutoSave;
-import org.postgresql.jdbc.PreferQueryMode;
-import org.postgresql.util.ExpressionProperties;
-import org.postgresql.util.GT;
-import org.postgresql.util.PSQLException;
-import org.postgresql.util.PSQLState;
-import org.postgresql.util.URLCoder;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -26,19 +17,30 @@ import java.sql.SQLException;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 import javax.naming.NamingException;
 import javax.naming.RefAddr;
 import javax.naming.Reference;
 import javax.naming.Referenceable;
 import javax.naming.StringRefAddr;
 import javax.sql.CommonDataSource;
+import javax.sql.DataSource;
+
+import org.postgresql.PGProperty;
+import org.postgresql.jdbc.AutoSave;
+import org.postgresql.jdbc.PreferQueryMode;
+import org.postgresql.util.ExpressionProperties;
+import org.postgresql.util.GT;
+import org.postgresql.util.PSQLException;
+import org.postgresql.util.PSQLState;
+import org.postgresql.util.URLCoder;
 
 /**
  * Base class for data sources and related classes.
  *
  * @author Aaron Mulder (ammulder@chariotsolutions.com)
  */
-public abstract class BaseDataSource implements CommonDataSource, Referenceable {
+public abstract class BaseDataSource implements CommonDataSource, DataSource, Referenceable {
 
   private static final Logger LOGGER = Logger.getLogger(BaseDataSource.class.getName());
 
@@ -75,7 +77,8 @@ public abstract class BaseDataSource implements CommonDataSource, Referenceable 
    * @return A valid database connection.
    * @throws SQLException Occurs when the database connection cannot be established.
    */
-  public Connection getConnection() throws SQLException {
+  @Override
+public Connection getConnection() throws SQLException {
     return getConnection(user, password);
   }
 
@@ -89,7 +92,8 @@ public abstract class BaseDataSource implements CommonDataSource, Referenceable 
    * @return A valid database connection.
    * @throws SQLException Occurs when the database connection cannot be established.
    */
-  public Connection getConnection(String user, String password) throws SQLException {
+  @Override
+public Connection getConnection(String user, String password) throws SQLException {
     try {
       Connection con = DriverManager.getConnection(getUrl(), user, password);
       if (LOGGER.isLoggable(Level.FINE)) {
@@ -1206,7 +1210,8 @@ public abstract class BaseDataSource implements CommonDataSource, Referenceable 
     return new Reference(getClass().getName(), PGObjectFactory.class.getName(), null);
   }
 
-  public Reference getReference() throws NamingException {
+  @Override
+public Reference getReference() throws NamingException {
     Reference ref = createReference();
     ref.add(new StringRefAddr("serverName", serverName));
     if (portNumber != 0) {
@@ -1329,8 +1334,21 @@ public abstract class BaseDataSource implements CommonDataSource, Referenceable 
   }
 
   //#if mvn.project.property.postgresql.jdbc.spec >= "JDBC4.1"
-  public java.util.logging.Logger getParentLogger() {
+  @Override
+public java.util.logging.Logger getParentLogger() {
     return Logger.getLogger("org.postgresql");
   }
   //#endif
+	@Override
+	public boolean isWrapperFor(Class<?> iface) throws SQLException {
+		return iface.isAssignableFrom(getClass());
+	}
+
+	@Override
+	public <T> T unwrap(Class<T> iface) throws SQLException {
+		if (iface.isAssignableFrom(getClass())) {
+			return iface.cast(this);
+		}
+		throw new SQLException("Cannot unwrap to " + iface.getName());
+	}
 }
